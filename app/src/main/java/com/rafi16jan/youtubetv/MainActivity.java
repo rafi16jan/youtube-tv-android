@@ -11,11 +11,16 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.app.UiModeManager;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 
 
 public class MainActivity extends Activity {
@@ -24,6 +29,8 @@ public class MainActivity extends Activity {
     private static final String URL = "https://www.youtube.com/tv";
     //Define WebView
     private WebView webView;
+
+    private Boolean isLoaded = false;
 
     public Bitmap bitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888);
 
@@ -105,6 +112,7 @@ public class MainActivity extends Activity {
                         "    }\n" +
                         "    throttle = true;\n" +
                         "}", null);
+                isLoaded = true;
             }
         });
         webView.setBackgroundColor(Color.parseColor("#282828"));
@@ -113,6 +121,19 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        webView.evaluateJavascript("[document.dispatchEvent(new KeyboardEvent('keydown', {keyCode: 27})), document.dispatchEvent(new KeyboardEvent('keyup', {keyCode: 27}))]", null);
+        if (!isLoaded) {
+            super.onBackPressed();
+            return;
+        }
+        webView.evaluateJavascript("[document.dispatchEvent(new KeyboardEvent('keydown', {keyCode: 27})), document.dispatchEvent(new KeyboardEvent('keyup', {keyCode: 27}))] && ((document.querySelector('[id*=\"ytlr_overlay_panel_renderer__aria-id\"]') || {}).innerText === 'Exit YouTube\\nAre you sure you want to exit YouTube?')", (result) -> onResult(result, (value) -> super.onBackPressed()));
+    }
+
+    private void onResult(String result, ValueCallback callback) {
+        try {
+            JSONObject object = new JSONObject("{\"value\":" + result + "}");
+            if (object.getBoolean("value"))  callback.onReceiveValue(result);
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
